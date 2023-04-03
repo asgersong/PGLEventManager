@@ -25,3 +25,5 @@ After having inserted a couple of items, you can view the different tables in th
 - Select some database: ```USE pgl;```
 - Describe some table, for instance users: ```DESCRIBE users;```
 - Show all data in some table, for instance users: ```SELECT * FROM users;``` 
+
+Alternatively, open the program ```HeidiSQL``` installed together with mariadb for a more elegant view. 
