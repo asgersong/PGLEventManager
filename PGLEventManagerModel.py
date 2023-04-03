@@ -1,14 +1,17 @@
 import mysql.connector as mysql
 import json
 
+
 class PGLEventManagerModel:
     """Model to store timestamp events in mysql database.
     The model handles all interaction with the database. """
 
+    # table names
     USERS_TABLE_NAME = "users"
     JOURNEY_TABLE_NAME = "journey"
     PRODUCT_TABLE_NAME = "products"
 
+    # table descriptions
     USERS_TABLE_DESCRIPTION: str = """users 
                                        (username VARCHAR(320) NOT NULL,
                                         password VARCHAR(255) NOT NULL, 
