@@ -3,7 +3,7 @@ from threading import Event, Thread
 from queue import Empty, Queue
 import warnings
 
-import PGLEventManagerModel
+from PGLEventManagerModel import PGLEventManagerModel
 
 class PGLEventManagerController:
     """The controller listens on MQTT topics and differentiates between three different. 

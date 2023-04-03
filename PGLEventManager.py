@@ -1,8 +1,8 @@
 from threading import Event
 import keyboard
 
-import PGLEventManagerModel
-import PGLEventManagerController
+from PGLEventManagerModel import PGLEventManagerModel
+from PGLEventManagerController import PGLEventManagerController
 
 
 def main():
