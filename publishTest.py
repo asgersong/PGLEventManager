@@ -35,7 +35,7 @@ publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, "user3;sandkasse123;user;", hostn
 # while True:
 #     msg = subscribe.simple("PGL/response/send_events", hostname="localhost")
 #     data = json.loads(msg.payload)
-#     with open('readme.json', 'w') as f:
+#     with open('data.txt', 'w') as f:
 #         json.dump(data, f)
 
     
