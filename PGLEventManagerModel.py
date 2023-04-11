@@ -12,20 +12,20 @@ class PGLEventManagerModel:
     PRODUCT_TABLE_NAME = "products"
 
     # table descriptions
-    USERS_TABLE_DESCRIPTION: str = """users 
+    __USERS_TABLE_DESCRIPTION: str = """users 
                                        (username VARCHAR(320) NOT NULL,
                                         password VARCHAR(255) NOT NULL, 
                                         usertype VARCHAR(30) NOT NULL, 
                                         PRIMARY KEY(username) )"""
 
-    JOURNEY_TABLE_DESCRIPTION: str = """ journey 
+    __JOURNEY_TABLE_DESCRIPTION: str = """ journey 
                                         (journey_id int NOT NULL AUTO_INCREMENT, 
                                         datetime VARCHAR(30) NOT NULL, 
                                         timestamp VARCHAR(30) NOT NULL, 
                                         device int NOT NULL,
                                         PRIMARY KEY (journey_id) )"""
 
-    PRODUCTS_TABLE_DESCRIPTION: str = """products 
+    __PRODUCTS_TABLE_DESCRIPTION: str = """products 
                                     (product_id int NOT NULL AUTO_INCREMENT,
                                     device  int NOT NULL,
                                     user    VARCHAR(320) NOT NULL,
@@ -54,7 +54,7 @@ class PGLEventManagerModel:
             # If the database doesn't exist, then create it.
             if err.errno == mysql.errorcode.ER_BAD_DB_ERROR:
                 print("Database does not exist. Will be created.")
-                self.createDatabase()
+                self.__createDatabase()
                 print(f"Database {self.__database_name} created successfully.")
             else:
                 print(f'Failed connecting to database with error: {err}')
@@ -65,7 +65,7 @@ class PGLEventManagerModel:
         print("Disconnected from database")
 
     # creates database with parameters from __init__
-    def createDatabase(self) -> None:
+    def __createDatabase(self) -> None:
         cursor = self.__PGL_db_connection.cursor()
 
         try:
@@ -81,14 +81,14 @@ class PGLEventManagerModel:
             cursor.execute(f'USE {self.__database_name}')
             # create events table with two columns
             # create users table with two columns
-            cursor.execute(f"CREATE TABLE {self.USERS_TABLE_DESCRIPTION}")
-            cursor.execute(f'CREATE TABLE {self.PRODUCTS_TABLE_DESCRIPTION}')
-            cursor.execute(f"CREATE TABLE {self.JOURNEY_TABLE_DESCRIPTION}")
+            cursor.execute(f"CREATE TABLE {self.__USERS_TABLE_DESCRIPTION}")
+            cursor.execute(f'CREATE TABLE {self.__PRODUCTS_TABLE_DESCRIPTION}')
+            cursor.execute(f"CREATE TABLE {self.__JOURNEY_TABLE_DESCRIPTION}")
 
         cursor.close()
         self.__PGL_db_connection = self.__database_name
 
-    def userExists(self, username) -> bool:
+    def __userExists(self, username) -> bool:
         cursor = self.__PGL_db_connection.cursor()
         query = f'SELECT COUNT(username) FROM {self.USERS_TABLE_NAME} WHERE username = "{username}";'
         cursor.execute(query)
@@ -101,7 +101,7 @@ class PGLEventManagerModel:
     # store event in database.
     # event is in string format with entry values separated by ';'
 
-    def store(self, event, table: str):
+    def store(self, event : str, table: str):
         # we should format the event here in respective columns and such
         try:
             # store timestamp event in 'events' table
@@ -120,7 +120,7 @@ class PGLEventManagerModel:
                 # check that user doesn't already exist
                 val = tuple(event.split(';')[:-1])
                 # if no duplicates, insert in table
-                if not self.userExists(val[0]):
+                if not self.__userExists(val[0]):
                     cursor.reset()
                     query = f"INSERT INTO {self.USERS_TABLE_NAME} (username, password, usertype) VALUES (%s, %s, %s)"
                     cursor.execute(query, val)
@@ -139,12 +139,20 @@ class PGLEventManagerModel:
             elif table == self.PRODUCT_TABLE_NAME:
                 cursor = self.__PGL_db_connection.cursor()
                 val = tuple(event.split(';')[:-1])
-                user = val[0]
-                if self.userExists(user):
-                    query = f"INSERT INTO {self.PRODUCT_TABLE_NAME}(device, user) VALUES (%s, %s)"
-                    cursor.execute(query, val)
-                    self.__PGL_db_connection.commit()
-                    print("Stored product in DB")
+                user = val[1]
+                device = val[0]
+                if self.__userExists(user):
+                    query = f'SELECT product_id FROM {self.PRODUCT_TABLE_NAME} WHERE user = "{user}" AND device = "{device}"'
+                    cursor.execute(query)
+
+                    duplicates = cursor.fetchall()
+                    if  len(duplicates) > 0:
+                        print("Product already exists")
+                    else:
+                        query = f"INSERT INTO {self.PRODUCT_TABLE_NAME}(device, user) VALUES (%s, %s)"
+                        cursor.execute(query, val)
+                        self.__PGL_db_connection.commit()
+                        print("Stored product in DB")
                 else:
                     print("User not found. Didn't store products")
 
