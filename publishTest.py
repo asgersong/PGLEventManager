@@ -31,14 +31,14 @@ user_request = "user2"
 
 publish.single("PGL/request/get_events", f"{user_request}; ;", hostname="localhost")
 # publish.single(REQUEST_VALIDATE_USER_TOPIC, "user1; pas1;", hostname="localhost")
-publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, "user564;sandboks123;user;", hostname="localhost")
+# publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, "user564;sandboks123;user;", hostname="localhost")
 
 
-while True:
-    msg = subscribe.simple("PGL/response/send_events", hostname="localhost")
-    data = json.loads(msg.payload)
-    with open(f'data_{user_request}.txt', 'w') as f:
-        json.dump(data, f)
-    exit(0)
+# while True:
+#     msg = subscribe.simple("PGL/response/send_events", hostname="localhost")
+#     data = json.loads(msg.payload)
+#     with open(f'data_{user_request}.txt', 'w') as f:
+#         json.dump(data, f)
+#     exit(0)
 
     
