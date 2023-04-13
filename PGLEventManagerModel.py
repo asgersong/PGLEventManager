@@ -35,13 +35,10 @@ class PGLEventManagerModel:
                                             PRIMARY KEY (device_id, user_id),
                                             FOREIGN KEY (device_id) REFERENCES devices(device_id),
                                             FOREIGN KEY (user_id) REFERENCES users(user_id))"""
-    
-    
+
     __DEVICES_TABLE_DESCRIPTION: str = """devices
                                           (device_id VARCHAR(255) NOT NULL,
                                           PRIMARY KEY (device_id)) """
-    
-
 
     def __init__(self, host, database: str, user: str, password: str) -> None:
         self.__host = host
@@ -90,8 +87,6 @@ class PGLEventManagerModel:
         else:
             # move cursor to work in this database
             cursor.execute(f'USE {self.__database_name}')
-            # create events table with two columns
-            # create users table with two columns
             cursor.execute(f"CREATE TABLE {self.__USERS_TABLE_DESCRIPTION}")
             cursor.execute(f"CREATE TABLE {self.__DEVICES_TABLE_DESCRIPTION}")
             cursor.execute(f"CREATE TABLE {self.__PRODUCTS_TABLE_DESCRIPTION}")
@@ -113,18 +108,18 @@ class PGLEventManagerModel:
     # store event in database.
     # event is in string format with entry values separated by ';'
 
-    def store(self, event : str, table: str):
+    def store(self, event: str, table: str):
         # we should format the event here in respective columns and such
         try:
 
-            #store new device
+            # store new device
             if table == self.DEVICES_TABLE_NAME:
                 cursor = self.__PGL_db_connection.cursor()
                 query = f'INSERT INTO {self.DEVICES_TABLE_NAME} (device_id) VALUES ("{event}")'
                 cursor.execute(query)
                 self.__PGL_db_connection.commit()
                 print("Stored device in DB")
-            
+
             # store timestamp event in 'events' table
             elif table == self.JOURNEY_TABLE_NAME:
                 cursor = self.__PGL_db_connection.cursor()
@@ -164,64 +159,73 @@ class PGLEventManagerModel:
                 query = f"""INSERT INTO products (device_id, user_id) 
                                 VALUES ('{device_id}', 
                                     (SELECT user_id FROM users WHERE username = '{user}'));"""
-                
-                cursor.execute(query)
-                print(f'Insert user: {user} and device_id: {device_id}')
-                # if self.__userExists(user):
-                #     query = f'SELECT product_id FROM {self.PRODUCT_TABLE_NAME} WHERE user = "{user}" AND device_id = "{device_id}"'
-                #     cursor.execute(query)
 
-                #     duplicates = cursor.fetchall()
-                #     if  len(duplicates) > 0:
-                #         print("Product already exists")
-                #     else:
-                #         query = f"INSERT INTO {self.PRODUCT_TABLE_NAME}(device_id, user) VALUES (%s, %s)"
-                #         cursor.execute(query, val)
-                #         self.__PGL_db_connection.commit()
-                #         print("Stored product in DB")
-                # else:
-                #     print("User not found. Didn't store products")
+                cursor.execute(query)
+                self.__PGL_db_connection.commit()
+                print(f'Insert user: {user} and device_id: {device_id}')
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
 
         cursor.close()
 
-    def getEvents(self, table: str, credentials: str) -> str:
-        # returns all data related to the user from the database as string in json format
-        if table == self.JOURNEY_TABLE_NAME:
-            credentials = tuple(credentials.split(';')[:-1])  # get username
-            username = credentials[0]
-            # find all device_ids related to user from products table
-            query = f'SELECT device_id FROM products WHERE user = "{username}"'
-            cursor = self.__PGL_db_connection.cursor()
-            journeys = []
-            events = []
-            cursor.execute(query)
-            all_data = cursor.fetchall()  # get all device_ids related to user
-            for row in all_data:
-                # find all journeys related to device_id
-                query = f'SELECT * FROM journey WHERE device_id = "{row[0]}"'
-                cursor.execute(query)
-                journeys = cursor.fetchall()
-                for j in journeys:
-                    events.append(j)
+    def getEvents(self, table: str, payload_in: str) -> str:
 
-            events_json = json.dumps(events)
-            return events_json
+        # returns all data related to the query from the database as string in json format
+        if table == self.JOURNEY_TABLE_NAME:
+            payload_in = tuple(payload_in.split(';')[:-1])  # get payload as tuple
+            username = payload_in[0] # get username from payload
+
+            if len(payload_in) > 1: device_id = payload_in[1]  # get device_id from payload if available
+            else: device_id = 0
+
+            # return ALL data related to user. Returns empty list if no data
+            if device_id == 0:
+                cursor = self.__PGL_db_connection.cursor()
+                query = f"""SELECT * FROM {self.JOURNEY_TABLE_NAME} 
+                                JOIN {self.PRODUCT_TABLE_NAME} ON journey.device_id = products.device_id 
+                                    WHERE products.user_id = 
+                                        (SELECT user_id FROM {self.USERS_TABLE_NAME} 
+                                            WHERE username = '{username}')"""
+                cursor.execute(query)
+                all_data = cursor.fetchall()
+                events = []
+                for row in all_data:
+                    events.append(row)
+                events_json = json.dumps(events)
+                return events_json
+
+            # return data related to specific device and user. Returns empty list if no data
+            elif device_id != 0:
+                cursor = self.__PGL_db_connection.cursor()
+                query = f"""SELECT * FROM {self.JOURNEY_TABLE_NAME} 
+                                JOIN {self.PRODUCT_TABLE_NAME} ON journey.device_id = products.device_id 
+                                    WHERE products.user_id = 
+                                        (SELECT user_id FROM {self.USERS_TABLE_NAME} WHERE username = '{username}') 
+                                            AND products.device_id = '{device_id}'"""
+                cursor.execute(query)
+                all_data = cursor.fetchall()
+                events = []
+                for row in all_data:
+                    events.append(row)
+                events_json = json.dumps(events)
+                return events_json
 
         # validates a user by checking if the user/pass combination exists in 'users' table
         elif table == self.USERS_TABLE_NAME:
-            credentials = tuple(credentials.split(';')[:-1])
-            user = credentials[0]
-            pass_ = credentials[1]
+            payload_in = tuple(payload_in.split(';')[:-1])
+            user = payload_in[0]
+            pass_ = payload_in[1]
             cursor = self.__PGL_db_connection.cursor()
             query = f'SELECT COUNT(*) FROM {self.USERS_TABLE_NAME} WHERE username = "{user}" AND password = "{pass_}"'
 
             try:
                 cursor.execute(query)
-
-                if cursor.fetchone()[0] > 0:
+                rows = cursor.fetchone()
+                count = rows[0]
+                cursor.reset()
+                cursor.close()
+                if (count > 0):
                     return 'VALID'
                 else:
                     return 'INVALID'
