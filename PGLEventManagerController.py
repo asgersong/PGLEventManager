@@ -25,6 +25,7 @@ class PGLEventManagerController:
     __REQUEST_CREATE_PRODUCT_TOPIC = f'{__MAIN_TOPIC}/request/store_product'
     __REQUEST_GET_EVENTS_TOPIC = f'{__MAIN_TOPIC}/request/get_events'
     __REQUEST_VALIDATE_USER_TOPIC = f'{__MAIN_TOPIC}/request/valid_user'
+    __REQUEST_NEW_DEVICE_TOPIC = f'{__MAIN_TOPIC}/request/new_device'
 
     __RESPONSE_SEND_EVENTS_TOPIC = f'{__MAIN_TOPIC}/response/send_events'
     __RESPONSE_VALIDATE_USER_TOPIC = f'{__MAIN_TOPIC}/response/valid_user'
@@ -94,8 +95,14 @@ class PGLEventManagerController:
             else:
                 try:
                     mqtt_message_topic = mqtt_message.topic
+
+                    if mqtt_message_topic == self.__REQUEST_NEW_DEVICE_TOPIC:
+                        event_string = mqtt_message.payload.decode("utf-8")
+                        self.__PGLmodel.store(
+                            event_string, self.__PGLmodel.DEVICES_TABLE_NAME)
+
                     # store event from PI in database
-                    if mqtt_message_topic == self.__REQUEST_STORE_EVENT_IN_DB_TOPIC:
+                    elif mqtt_message_topic == self.__REQUEST_STORE_EVENT_IN_DB_TOPIC:
                         # if any logic should be computed on the incoming data, we should do it here?
                         event_string = mqtt_message.payload.decode("utf-8")
                         self.__PGLmodel.store(
