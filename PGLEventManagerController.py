@@ -14,7 +14,6 @@ class PGLEventManagerController:
     # READ: Right now we publish on the '__RESPONSE_VALIDATE_USER_TOPIC' topic both when explicitly requested (logging in),
     # and when trying to create a new user (check for duplicates).
     __MAIN_TOPIC = "PGL"
-    __ALL_TOPICS = "PGL/#"
     __REQUEST_TOPICS = f"{__MAIN_TOPIC}/request/#"
     # this is the events that the PI publishes to
     __REQUEST_STORE_EVENT_IN_DB_TOPIC = f'{__MAIN_TOPIC}/request/store_event'
@@ -95,59 +94,59 @@ class PGLEventManagerController:
             else:
                 try:
                     mqtt_message_topic = mqtt_message.topic
+                    match mqtt_message_topic:
+                        case self.__REQUEST_NEW_DEVICE_TOPIC:
+                            event_string = mqtt_message.payload.decode("utf-8")
+                            self.__PGLmodel.store(
+                                event_string, self.__PGLmodel.DEVICES_TABLE_NAME)
 
-                    if mqtt_message_topic == self.__REQUEST_NEW_DEVICE_TOPIC:
-                        event_string = mqtt_message.payload.decode("utf-8")
-                        self.__PGLmodel.store(
-                            event_string, self.__PGLmodel.DEVICES_TABLE_NAME)
+                        # store event from PI in database
+                        case self.__REQUEST_STORE_EVENT_IN_DB_TOPIC:
+                            # if any logic should be computed on the incoming data, we should do it here?
+                            event_string = mqtt_message.payload.decode("utf-8")
+                            self.__PGLmodel.store(
+                                event_string, self.__PGLmodel.JOURNEY_TABLE_NAME)
 
-                    # store event from PI in database
-                    elif mqtt_message_topic == self.__REQUEST_STORE_EVENT_IN_DB_TOPIC:
-                        # if any logic should be computed on the incoming data, we should do it here?
-                        event_string = mqtt_message.payload.decode("utf-8")
-                        self.__PGLmodel.store(
-                            event_string, self.__PGLmodel.JOURNEY_TABLE_NAME)
+                        # store produc in database (from web request)
+                        case self.__REQUEST_CREATE_PRODUCT_TOPIC:
+                            event_string = mqtt_message.payload.decode("utf-8")
+                            self.__PGLmodel.store(
+                                event_string, self.__PGLmodel.PRODUCT_TABLE_NAME)
 
-                    # store produc in database (from web request)
-                    elif mqtt_message_topic == self.__REQUEST_CREATE_PRODUCT_TOPIC:
-                        event_string = mqtt_message.payload.decode("utf-8")
-                        self.__PGLmodel.store(
-                            event_string, self.__PGLmodel.PRODUCT_TABLE_NAME)
+                        # store user in database
+                        case self.__REQUEST_STORE_USER_IN_DB_TOPIC:
+                            # if any logic should be computed on the incoming data, we should do it here
+                            event_string = mqtt_message.payload.decode("utf-8")
+                            succ = self.__PGLmodel.store(
+                                event_string, self.__PGLmodel.USERS_TABLE_NAME)
+                            # publish to indicate if user is stored succesfully
+                            self.__mqtt_client.publish(
+                                self.__RESPONSE_VALIDATE_USER_TOPIC, succ)
 
-                    # store user in database
-                    elif mqtt_message_topic == self.__REQUEST_STORE_USER_IN_DB_TOPIC:
-                        # if any logic should be computed on the incoming data, we should do it here
-                        event_string = mqtt_message.payload.decode("utf-8")
-                        succ = self.__PGLmodel.store(
-                            event_string, self.__PGLmodel.USERS_TABLE_NAME)
-                        # publish to indicate if user is stored succesfully
-                        self.__mqtt_client.publish(
-                            self.__RESPONSE_VALIDATE_USER_TOPIC, succ)
+                        # return all events from database for given user
+                        case self.__REQUEST_GET_EVENTS_TOPIC:
+                            # retrieve data from database using the model
+                            credentials = mqtt_message.payload.decode("utf-8")
+                            data = self.__PGLmodel.getEvents(
+                                self.__PGLmodel.JOURNEY_TABLE_NAME, credentials)
+                            # publish the data on the proper topic
+                            self.__mqtt_client.publish(
+                                self.__RESPONSE_SEND_EVENTS_TOPIC, data)
+                            print("Published data")
 
-                    # return all events from database for given user
-                    elif mqtt_message_topic == self.__REQUEST_GET_EVENTS_TOPIC:
-                        # retrieve data from database using the model
-                        credentials = mqtt_message.payload.decode("utf-8")
-                        data = self.__PGLmodel.getEvents(
-                            self.__PGLmodel.JOURNEY_TABLE_NAME, credentials)
-                        # publish the data on the proper topic
-                        self.__mqtt_client.publish(
-                            self.__RESPONSE_SEND_EVENTS_TOPIC, data)
-                        print("Published data")
+                        # validate a user
+                        case self.__REQUEST_VALIDATE_USER_TOPIC:
+                            credentials = mqtt_message.payload.decode("utf-8")
+                            validity = self.__PGLmodel.getEvents(
+                                self.__PGLmodel.USERS_TABLE_NAME, credentials)
+                            self.__mqtt_client.publish(
+                                self.__RESPONSE_VALIDATE_USER_TOPIC, validity)
+                            print(f'Validated user: {validity}')
 
-                    # validate a user
-                    elif mqtt_message_topic == self.__REQUEST_VALIDATE_USER_TOPIC:
-                        credentials = mqtt_message.payload.decode("utf-8")
-                        validity = self.__PGLmodel.getEvents(
-                            self.__PGLmodel.USERS_TABLE_NAME, credentials)
-                        self.__mqtt_client.publish(
-                            self.__RESPONSE_VALIDATE_USER_TOPIC, validity)
-                        print(f'Validated user: {validity}')
-
-                    else:
-                        # not the right topic
-                        warnings.warn(
-                            f'Message recieved on unkown topic: {mqtt_message.topic}')
+                        case _:
+                            # not the right topic
+                            warnings.warn(
+                                f'Message recieved on unkown topic: {mqtt_message.topic}')
 
                 except KeyError:
                     print(f'Error occured in __worker: {KeyError}')
