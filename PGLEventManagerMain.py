@@ -1,6 +1,5 @@
 from threading import Event
 import keyboard
-
 from PGLEventManagerModel import PGLEventManagerModel
 from PGLEventManagerController import PGLEventManagerController
 
@@ -10,7 +9,7 @@ def main():
     print("Press 'x' to terminate")
 
     model = PGLEventManagerModel("localhost", "PGL", "PGL", "PGL")
-    controller = PGLEventManagerController("localhost", model)
+    controller = PGLEventManagerController("test.mosquitto.org", model)
 
     controller.startListening()
 

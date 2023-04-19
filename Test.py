@@ -7,7 +7,7 @@ import time
 import random
 import socket
 
-hostname = "localhost"
+hostname = "test.mosquitto.org"
 
 __MAIN_TOPIC = "PGL"
 REQUEST_TOPICS = f"{__MAIN_TOPIC}/request/#"
@@ -102,4 +102,4 @@ def validate_user(user, pass_):
 
 
 
-    
+create_event("device1")
