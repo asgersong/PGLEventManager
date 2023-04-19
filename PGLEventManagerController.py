@@ -23,6 +23,7 @@ class PGLEventManagerController:
     __REQUEST_STORE_USER_IN_DB_TOPIC = f'{__MAIN_TOPIC}/request/store_user'
     __REQUEST_CREATE_PRODUCT_TOPIC = f'{__MAIN_TOPIC}/request/store_product'
     __REQUEST_GET_EVENTS_TOPIC = f'{__MAIN_TOPIC}/request/get_events'
+    __REQUEST_GET_EMERGENCIES_TOPIC = f'{__MAIN_TOPIC}/request/get_emergencies'
     __REQUEST_VALIDATE_USER_TOPIC = f'{__MAIN_TOPIC}/request/valid_user'
     __REQUEST_NEW_DEVICE_TOPIC = f'{__MAIN_TOPIC}/request/new_device'
 
@@ -143,6 +144,19 @@ class PGLEventManagerController:
                                 self.__RESPONSE_VALIDATE_USER_TOPIC, validity)
                             print(f'Validated user: {validity}')
 
+                        # store emergency message
+                        case self.__REQUEST_EMERGENCY_TOPIC:
+                            event_string = mqtt_message.payload.decode("utf-8")
+                            self.__PGLmodel.store(
+                                event_string, self.__PGLmodel.EMERGENCY_TABLE_NAME)
+                            
+                        case self.__REQUEST_GET_EMERGENCIES_TOPIC:
+                            credentials = mqtt_message.payload.decode("utf-8")
+                            data = self.__PGLmodel.getEvents(
+                                self.__PGLmodel.EMERGENCY_TABLE_NAME, credentials)
+                            self.__mqtt_client.publish(self.__RESPONSE_EMERGENCY_TOPIC, data)
+                            print("Published emergencies")
+                            
                         case _:
                             # not the right topic
                             warnings.warn(
