@@ -29,7 +29,20 @@ user_request = "user1"
 
 # method to create user
 def create_user(user, pass_):
+
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_VALIDATE_USER_TOPIC, hostname=hostname)
+            resp = msg.payload.decode("utf-8")
+            print(resp)
+            exit(0)
+
+    t = threading.Thread(target=listen_response)
     publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, f"{user};{pass_};user;", hostname=hostname)
+    t.start()
+    time.sleep(2)
+    t.join()
+
 
 # method to create admin
 def create_admin(user, pass_):
@@ -53,53 +66,93 @@ def create_event(device):
 
 # method to get events
 def get_events(user):
+
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_SEND_EVENTS_TOPIC, hostname=hostname)
+            data = json.loads(msg.payload)
+            with open(f'testfiles/events_{user}.json', 'w') as f:
+                json.dump(data, f)
+            exit(0)
+    
+    t = threading.Thread(target=listen_response)
+    t.start()
     publish.single(REQUEST_GET_EVENTS_TOPIC, f"{user};", hostname=hostname)
     time.sleep(2)
-    while True:
-        msg = subscribe.simple(RESPONSE_SEND_EVENTS_TOPIC, hostname=hostname)
-        data = json.loads(msg.payload)
-        with open(f'events_{user}.txt', 'w') as f:
-            json.dump(data, f)
-        exit(0)
+    t.join()
 
 
 # method to get events to user and device
 def get_events_to_user_and_device(user, device):
+
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_SEND_EVENTS_TOPIC, hostname=hostname)
+            data = json.loads(msg.payload)
+            with open(f'testfiles/events_{device}_{user}.json', 'w') as f:
+                json.dump(data, f)
+            exit(0)
+
+    t = threading.Thread(target=listen_response)
+    t.start()
     publish.single(REQUEST_GET_EVENTS_TOPIC, f"{user};{device};", hostname=hostname)
     time.sleep(2)
-    while True:
-        msg = subscribe.simple(RESPONSE_SEND_EVENTS_TOPIC, hostname=hostname)
-        data = json.loads(msg.payload)
-        with open(f'events_{device}_{user}.txt', 'w') as f:
-            json.dump(data, f)
-        exit(0)
+    t.join()
 
 # method to get emergencies
 def get_emergencies(user):
+
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_EMERGENCY_TOPIC, hostname=hostname)
+            data = json.loads(msg.payload)
+            with open(f'testfiles/emergencies_{user}.json', 'w') as f:
+                json.dump(data, f)
+            exit(0)
+
+    t = threading.Thread(target=listen_response)
+    t.start()
     publish.single(REQUEST_GET_EMERGENCIES_TOPIC, f"{user};", hostname=hostname)
     time.sleep(2)
-    while True:
-        msg = subscribe.simple(RESPONSE_EMERGENCY_TOPIC, hostname=hostname)
-        data = json.loads(msg.payload)
-        with open(f'events_{user}.txt', 'w') as f:
-            json.dump(data, f)
-        exit(0)
+    t.join()
 
 # method to get emergenvies to user and device
 def get_emergencies_to_user_and_device(user, device):
+
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_EMERGENCY_TOPIC, hostname=hostname)
+            data = json.loads(msg.payload)
+            with open(f'testfiles/emergencies_{device}_{user}.json', 'w') as f:
+                json.dump(data, f)
+            exit(0)
+
+    t = threading.Thread(target=listen_response)
+    t.start()
     publish.single(REQUEST_GET_EMERGENCIES_TOPIC, f"{user};{device};", hostname=hostname)
     time.sleep(2)
-    while True:
-        msg = subscribe.simple(RESPONSE_EMERGENCY_TOPIC, hostname=hostname)
-        data = json.loads(msg.payload)
-        with open(f'events_{device}_{user}.txt', 'w') as f:
-            json.dump(data, f)
-        exit(0)
+    t.join()
+
 
 # method to validate user
 def validate_user(user, pass_):
+    def listen_response():
+        while True:
+            msg = subscribe.simple(RESPONSE_VALIDATE_USER_TOPIC, hostname=hostname)
+            resp = msg.payload.decode("utf-8")
+            print(resp)
+            exit(0)
+
+    t = threading.Thread(target=listen_response)
+    t.start()
     publish.single(REQUEST_VALIDATE_USER_TOPIC, f"{user};{pass_};", hostname=hostname)
+    time.sleep(2)
+    t.join()
 
 
 
-create_event("device1")
+# create_event("device1")
+# get_events("user1")
+# validate_user("user1", "pass1")
+
+create_user("user1", "pass1")
