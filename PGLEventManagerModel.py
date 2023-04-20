@@ -254,7 +254,7 @@ class PGLEventManagerModel:
                 elif device_id != 0:
                     cursor = self.__PGL_db_connection.cursor()
                     query = f"""SELECT * FROM {self.EMERGENCY_TABLE_NAME} 
-                                    JOIN {self.PRODUCT_TABLE_NAME} ON journey.device_id = products.device_id 
+                                    JOIN {self.PRODUCT_TABLE_NAME} ON emergency.device_id = products.device_id 
                                         WHERE products.user_id = 
                                             (SELECT user_id FROM {self.USERS_TABLE_NAME} WHERE username = '{username}') 
                                                 AND products.device_id = '{device_id}'"""
