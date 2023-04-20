@@ -38,9 +38,9 @@ def create_user(user, pass_):
             exit(0)
 
     t = threading.Thread(target=listen_response)
-    publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, f"{user};{pass_};user;", hostname=hostname)
     t.start()
-    time.sleep(2)
+    publish.single(REQUEST_STORE_USER_IN_DB_TOPIC, f"{user};{pass_};user;", hostname=hostname)
+    # time.sleep(2)
     t.join()
 
 
@@ -64,6 +64,13 @@ def create_event(device):
     t = random.randint(0, 3000)
     publish.single(REQUEST_STORE_EVENT_IN_DB_TOPIC, f"{date_time};{r};{t};{device};", hostname=hostname)
 
+# method to create emergency
+def create_emergency(device):
+    now = datetime.now()
+    date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+    time_passed = random.randint(0, 10000)
+    publish.single(REQUEST_EMERGENCY_TOPIC, f"{date_time};{time_passed};{device};", hostname=hostname)
+
 # method to get events
 def get_events(user):
 
@@ -78,7 +85,7 @@ def get_events(user):
     t = threading.Thread(target=listen_response)
     t.start()
     publish.single(REQUEST_GET_EVENTS_TOPIC, f"{user};", hostname=hostname)
-    time.sleep(2)
+    # time.sleep(2)
     t.join()
 
 
@@ -96,7 +103,7 @@ def get_events_to_user_and_device(user, device):
     t = threading.Thread(target=listen_response)
     t.start()
     publish.single(REQUEST_GET_EVENTS_TOPIC, f"{user};{device};", hostname=hostname)
-    time.sleep(2)
+    # time.sleep(2)
     t.join()
 
 # method to get emergencies
@@ -113,7 +120,7 @@ def get_emergencies(user):
     t = threading.Thread(target=listen_response)
     t.start()
     publish.single(REQUEST_GET_EMERGENCIES_TOPIC, f"{user};", hostname=hostname)
-    time.sleep(2)
+    # time.sleep(2)
     t.join()
 
 # method to get emergenvies to user and device
@@ -130,7 +137,7 @@ def get_emergencies_to_user_and_device(user, device):
     t = threading.Thread(target=listen_response)
     t.start()
     publish.single(REQUEST_GET_EMERGENCIES_TOPIC, f"{user};{device};", hostname=hostname)
-    time.sleep(2)
+    # time.sleep(2)
     t.join()
 
 
@@ -146,13 +153,81 @@ def validate_user(user, pass_):
     t = threading.Thread(target=listen_response)
     t.start()
     publish.single(REQUEST_VALIDATE_USER_TOPIC, f"{user};{pass_};", hostname=hostname)
-    time.sleep(2)
+    # time.sleep(2)
     t.join()
 
 
+def test_case_1_single_user(user, i : int):
+    # create a user
+    create_user(user, "pass")
+    # validate user
+    validate_user(user, "pass")
+    # create a device
+    create_device(f"device{i}")
+    # create a product
+    create_product(f"device{i}", user)
+    # create 10 events forf device{i}
+    for i in range(10):
+        create_event(f"device{i}")
 
-# create_event("device1")
-# get_events("user1")
-# validate_user("user1", "pass1")
+    # create 10 emergencies forf device{i}
+    for i in range(10):
+        create_emergency(f"device{i}")
 
-create_user("user1", "pass1")
+    # get events
+    get_events(user)
+    # get events to user and device
+    get_events_to_user_and_device(user, f"device{i}")
+    # get emergencies
+    get_emergencies(user)
+    # get emergencies to user and device
+    get_emergencies_to_user_and_device(user, f"device{i}")
+
+
+# create a test script
+if __name__ == "__main__":
+
+    # # create another test case with a admin
+    # user_request = "admin1"
+    # # create a admin
+    # create_admin(user_request, "pass")
+    # # validate user
+    # validate_user(user_request, "pass")
+    # # create a device
+    # create_device("device2")
+    # # create a product
+    # create_product("device2", user_request)
+    # create_product("device1", user_request)
+    # # create 10 events for device2
+    # for i in range(10):
+    #     create_event("device2")
+
+    # # create 10 emergencies for device2
+    # for i in range(10):
+    #     create_emergency("device2")
+    # # get events
+    # get_events(user_request)
+    # # get events to user and device
+    # get_events_to_user_and_device(user_request, "device2")
+    # # get emergencies
+    # get_emergencies(user_request)
+    # # get emergencies to user and device
+    # get_emergencies_to_user_and_device(user_request, "device2")
+
+    # spawn 10 threads to call test_case_1_single_user with different users
+    # threads = []
+    # for i in range(10):
+    #     t = threading.Thread(target=test_case_1_single_user, args=(f"user{i}", i))
+    #     t.start()
+    #     time.sleep(0.1)
+    #     threads.append(t)
+
+    # # wait for all threads to finish
+    # for t in threads:
+    #     t.join()
+
+    for i in range(100):
+        test_case_1_single_user(f"user{i}", i)
+
+
+
