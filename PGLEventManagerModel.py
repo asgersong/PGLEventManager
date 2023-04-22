@@ -29,7 +29,7 @@ class PGLEventManagerModel:
                                         device_id VARCHAR(255) NOT NULL,
                                         PRIMARY KEY (journey_id),
                                         FOREIGN KEY (device_id) REFERENCES devices(device_id))"""
-    
+
     __EMERGENCY_TABLE_DESCRIPTION: str = """emergency
                                         (emergency_id int NOT NULL AUTO_INCREMENT,
                                         datetime VARCHAR(30) NOT NULL,
@@ -48,8 +48,9 @@ class PGLEventManagerModel:
     __DEVICES_TABLE_DESCRIPTION: str = """devices
                                           (device_id VARCHAR(255) NOT NULL,
                                           PRIMARY KEY (device_id)) """
-    
-    __TABLE_DESCRIPTIONS = [__USERS_TABLE_DESCRIPTION, __JOURNEY_TABLE_DESCRIPTION, __PRODUCTS_TABLE_DESCRIPTION, __DEVICES_TABLE_DESCRIPTION, __EMERGENCY_TABLE_DESCRIPTION]
+
+    __TABLE_DESCRIPTIONS = [__USERS_TABLE_DESCRIPTION, __JOURNEY_TABLE_DESCRIPTION,
+                            __PRODUCTS_TABLE_DESCRIPTION, __DEVICES_TABLE_DESCRIPTION, __EMERGENCY_TABLE_DESCRIPTION]
 
     def __init__(self, host, database: str, user: str, password: str) -> None:
         self.__host = host
@@ -116,7 +117,7 @@ class PGLEventManagerModel:
         else:
             return True
 
-# region Store data in database 
+# region Store data in database
     def storeDevice(self, device_id: str) -> None:
         try:
             cursor = self.__PGL_db_connection.cursor()
@@ -128,7 +129,6 @@ class PGLEventManagerModel:
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
-    
 
     def storeJourney(self, payload: str) -> None:
         try:
@@ -142,7 +142,6 @@ class PGLEventManagerModel:
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
-    
 
     def storeEmergency(self, payload: str) -> None:
         try:
@@ -153,10 +152,9 @@ class PGLEventManagerModel:
             self.__PGL_db_connection.commit()
             print("Stored emergency in DB")
             cursor.close()
-    
+
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
-    
 
     def storeUser(self, credentials: str) -> None:
         try:
@@ -179,11 +177,10 @@ class PGLEventManagerModel:
                 cursor.close()
                 print("Duplicate user not stored")
                 return 'INVALID'
-            
+
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
-    
-        
+
     def storeProduct(self, payload: str) -> None:
         try:
             cursor = self.__PGL_db_connection.cursor()
@@ -203,54 +200,60 @@ class PGLEventManagerModel:
             print(f'Failed to insert into database with error: {err}')
 
 # endregion
-    
-    
+
     def __eventsToJson(self, data) -> str:
         events = []
         for row in data:
             events.append(row)
         events_json = json.dumps(events)
         return events_json
-    
+
 # region Get data from database
 
-    def getJourneys(self, payload : str) -> str:
-            payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
-            username = payload_in[0] # get username from payload
+    def getJourneys(self, payload: str) -> str:
+        payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
+        username = payload_in[0]  # get username from payload
 
-            if len(payload_in) > 1: device_id = payload_in[1]  # get device_id from payload if available
-            else: device_id = 0
+        if len(payload_in) > 1:
+            # get device_id from payload if available
+            device_id = payload_in[1]
+        else:
+            device_id = 0
 
-            # return ALL data related to user. Returns empty list if no data
-            if device_id == 0:
-                cursor = self.__PGL_db_connection.cursor()
-                query = f"""SELECT * FROM {self.__JOURNEY_TABLE_NAME} 
+        # return ALL data related to user. Returns empty list if no data
+        if device_id == 0:
+            cursor = self.__PGL_db_connection.cursor()
+            query = f"""SELECT * FROM {self.__JOURNEY_TABLE_NAME} 
                                 JOIN {self.__PRODUCT_TABLE_NAME} ON journey.device_id = products.device_id 
                                     WHERE products.user_id = 
                                         (SELECT user_id FROM {self.__USERS_TABLE_NAME} 
                                             WHERE username = '{username}')"""
-                cursor.execute(query)
-                all_data = cursor.fetchall()
-                return self.__eventsToJson(all_data)
+            cursor.execute(query)
+            all_data = cursor.fetchall()
+            return self.__eventsToJson(all_data)
 
-            # return data related to specific device and user. Returns empty list if no data
-            elif device_id != 0:
-                cursor = self.__PGL_db_connection.cursor()
-                query = f"""SELECT * FROM {self.__JOURNEY_TABLE_NAME} 
+        # return data related to specific device and user. Returns empty list if no data
+        elif device_id != 0:
+            cursor = self.__PGL_db_connection.cursor()
+            query = f"""SELECT * FROM {self.__JOURNEY_TABLE_NAME} 
                                 JOIN {self.__PRODUCT_TABLE_NAME} ON journey.device_id = products.device_id 
                                     WHERE products.user_id = 
                                         (SELECT user_id FROM {self.__USERS_TABLE_NAME} WHERE username = '{username}') 
                                             AND products.device_id = '{device_id}'"""
-                cursor.execute(query)
-                all_data = cursor.fetchall()
-                return self.__eventsToJson(all_data)
-            
-    def getEmergencies(self, payload : str) -> str:
-        payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
-        username = payload_in[0]                        # get username from payload
+            cursor.execute(query)
+            all_data = cursor.fetchall()
+            return self.__eventsToJson(all_data)
 
-        if len(payload_in) > 1: device_id = payload_in[1]  # get device_id from payload if available
-        else: device_id = 0
+    def getEmergencies(self, payload: str) -> str:
+        payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
+        # get username from payload
+        username = payload_in[0]
+
+        if len(payload_in) > 1:
+            # get device_id from payload if available
+            device_id = payload_in[1]
+        else:
+            device_id = 0
 
         # return ALL emergencies related to user. Returns empty list if no data
         if device_id == 0:
@@ -260,7 +263,7 @@ class PGLEventManagerModel:
                                 WHERE products.user_id =
                                     (SELECT user_id FROM {self.__USERS_TABLE_NAME} 
                                         WHERE username = '{username}')"""
-            
+
             cursor.execute(query)
             all_data = cursor.fetchall()
             return self.__eventsToJson(all_data)
@@ -274,9 +277,9 @@ class PGLEventManagerModel:
                                         AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data)   
-        
-    def validateUser(self, credentials : str) -> str:
+            return self.__eventsToJson(all_data)
+
+    def validateUser(self, credentials: str) -> str:
         payload_in = tuple(credentials.split(';')[:-1])
         user = payload_in[0]
         pass_ = payload_in[1]
