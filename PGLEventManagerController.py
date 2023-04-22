@@ -5,6 +5,7 @@ import warnings
 
 from PGLEventManagerModel import PGLEventManagerModel
 
+
 class PGLEventManagerController:
     """The controller listens on MQTT topics and differentiates between three different. 
     Handles both incoming data to be stored in the database (model) as well as requests for 
@@ -103,28 +104,24 @@ class PGLEventManagerController:
                     match mqtt_message_topic:
                         case self.__REQUEST_NEW_DEVICE_TOPIC:
                             event_string = mqtt_message.payload.decode("utf-8")
-                            self.__PGLmodel.store(
-                                event_string, self.__PGLmodel.DEVICES_TABLE_NAME)
+                            self.__PGLmodel.storeDevice(event_string)
 
                         # store event from PI in database
                         case self.__REQUEST_STORE_EVENT_IN_DB_TOPIC:
                             # if any logic should be computed on the incoming data, we should do it here?
                             event_string = mqtt_message.payload.decode("utf-8")
-                            self.__PGLmodel.store(
-                                event_string, self.__PGLmodel.JOURNEY_TABLE_NAME)
+                            self.__PGLmodel.storeJourney(event_string)
 
                         # store produc in database (from web request)
                         case self.__REQUEST_CREATE_PRODUCT_TOPIC:
                             event_string = mqtt_message.payload.decode("utf-8")
-                            self.__PGLmodel.store(
-                                event_string, self.__PGLmodel.PRODUCT_TABLE_NAME)
+                            self.__PGLmodel.storeProduct(event_string)
 
                         # store user in database
                         case self.__REQUEST_STORE_USER_IN_DB_TOPIC:
                             # if any logic should be computed on the incoming data, we should do it here
                             event_string = mqtt_message.payload.decode("utf-8")
-                            succ = self.__PGLmodel.store(
-                                event_string, self.__PGLmodel.USERS_TABLE_NAME)
+                            succ = self.__PGLmodel.storeUser(event_string)
                             # publish to indicate if user is stored succesfully
                             self.__mqtt_client.publish(
                                 self.__RESPONSE_VALIDATE_USER_TOPIC, succ)
@@ -132,9 +129,8 @@ class PGLEventManagerController:
                         # return all events from database for given user
                         case self.__REQUEST_GET_EVENTS_TOPIC:
                             # retrieve data from database using the model
-                            credentials = mqtt_message.payload.decode("utf-8")
-                            data = self.__PGLmodel.getEvents(
-                                self.__PGLmodel.JOURNEY_TABLE_NAME, credentials)
+                            payload = mqtt_message.payload.decode("utf-8")
+                            data = self.__PGLmodel.getJourneys(payload)
                             # publish the data on the proper topic
                             self.__mqtt_client.publish(
                                 self.__RESPONSE_SEND_EVENTS_TOPIC, data)
@@ -143,8 +139,8 @@ class PGLEventManagerController:
                         # validate a user
                         case self.__REQUEST_VALIDATE_USER_TOPIC:
                             credentials = mqtt_message.payload.decode("utf-8")
-                            validity = self.__PGLmodel.getEvents(
-                                self.__PGLmodel.USERS_TABLE_NAME, credentials)
+                            validity = self.__PGLmodel.validateUser(
+                                credentials)
                             self.__mqtt_client.publish(
                                 self.__RESPONSE_VALIDATE_USER_TOPIC, validity)
                             print(f'Validated user: {validity}')
@@ -152,16 +148,16 @@ class PGLEventManagerController:
                         # store emergency message
                         case self.__REQUEST_EMERGENCY_TOPIC:
                             event_string = mqtt_message.payload.decode("utf-8")
-                            self.__PGLmodel.store(
-                                event_string, self.__PGLmodel.EMERGENCY_TABLE_NAME)
-                            
+                            self.__PGLmodel.storeEmergency(
+                                event_string)
+
                         case self.__REQUEST_GET_EMERGENCIES_TOPIC:
-                            credentials = mqtt_message.payload.decode("utf-8")
-                            data = self.__PGLmodel.getEvents(
-                                self.__PGLmodel.EMERGENCY_TABLE_NAME, credentials)
-                            self.__mqtt_client.publish(self.__RESPONSE_EMERGENCY_TOPIC, data)
+                            payload = mqtt_message.payload.decode("utf-8")
+                            data = self.__PGLmodel.getEmergencies(payload)
+                            self.__mqtt_client.publish(
+                                self.__RESPONSE_EMERGENCY_TOPIC, data)
                             print("Published emergencies")
-                            
+
                         case _:
                             # not the right topic
                             warnings.warn(
