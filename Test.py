@@ -229,7 +229,9 @@ if __name__ == "__main__":
     # for i in range(100):
     #     test_case_1_single_user(f"user{i}", i)
 
-    test_case_1_single_user("user100", 1)
+    # test_case_1_single_user("user100", 1)
+
+    create_event("device100")
 
 
 

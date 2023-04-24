@@ -117,6 +117,16 @@ class PGLEventManagerModel:
         else:
             return True
 
+    def __deviceExists(self, device_id) -> bool:
+        cursor = self.__PGL_db_connection.cursor()
+        query = f'SELECT COUNT(device_id) FROM {self.__DEVICES_TABLE_NAME} WHERE device_id = "{device_id}";'
+        cursor.execute(query)
+        duplicates = cursor.fetchone()[0]
+        if duplicates == 0:
+            return False
+        else:
+            return True
+
 # region Store data in database
     def storeDevice(self, device_id: str) -> None:
         try:
@@ -135,6 +145,12 @@ class PGLEventManagerModel:
             cursor = self.__PGL_db_connection.cursor()
             query = f"INSERT INTO {self.__JOURNEY_TABLE_NAME} (datetime, rtt, tt, device_id) VALUES (%s, %s, %s, %s)"
             val = tuple(payload.split(';')[:-1])
+
+            device = val[3]
+            if not self.__deviceExists(device):
+                print(f"Device: {device} does not exist in DB. Will be created.")
+                self.storeDevice(device)
+
             cursor.execute(query, val)
             self.__PGL_db_connection.commit()
             print("Stored event in DB")
