@@ -139,10 +139,10 @@ class PGLEventManagerController:
                         # validate a user
                         case self.__REQUEST_VALIDATE_USER_TOPIC:
                             credentials = mqtt_message.payload.decode("utf-8")
-                            validity = self.__PGLmodel.validateUser(
+                            validity, client_id = self.__PGLmodel.validateUser(
                                 credentials)
                             self.__mqtt_client.publish(
-                                self.__RESPONSE_VALIDATE_USER_TOPIC, validity)
+                                f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{client_id}', validity)
                             print(f'Validated user: {validity}')
 
                         # store emergency message

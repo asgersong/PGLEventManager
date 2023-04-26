@@ -299,6 +299,8 @@ class PGLEventManagerModel:
         payload_in = tuple(credentials.split(';')[:-1])
         user = payload_in[0]
         pass_ = payload_in[1]
+        client_id = payload_in[2]
+
         cursor = self.__PGL_db_connection.cursor()
         query = f'SELECT COUNT(*) FROM {self.__USERS_TABLE_NAME} WHERE username = "{user}" AND password = "{pass_}"'
 
@@ -309,12 +311,12 @@ class PGLEventManagerModel:
             cursor.reset()
             cursor.close()
             if (count > 0):
-                return 'VALID'
+                return 'VALID', client_id
             else:
-                return 'INVALID'
+                return 'INVALID', client_id
 
         except mysql.Error as err:
             Warning.warn("Failed to validate user")
-            return 'INVALID'
+            return 'INVALID', client_id
 
 # endregion

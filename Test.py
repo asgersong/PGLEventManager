@@ -231,7 +231,8 @@ if __name__ == "__main__":
 
     # test_case_1_single_user("user100", 1)
 
-    create_event("device100")
+    # create_event("device100")
+    create_device("pigeonhost")
 
 
 
