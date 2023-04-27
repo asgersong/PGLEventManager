@@ -81,7 +81,7 @@ class PGLEventManagerController:
     # callback method that is called whenever a message arrives on a topic that '__mqtt_client' subscribes to
     def __onMessage(self, client, userdata, message: MQTTMessage) -> None:
         self.__events_queue.put(message)
-        print(f'MQTT Message recievered with payload: {message.payload}')
+        print(f'MQTT Message received with payload: {message.payload}')
 
     # __worker is the method that the __subscriber_thread runs
     # listens for MQTT events
