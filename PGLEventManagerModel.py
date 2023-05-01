@@ -146,7 +146,7 @@ class PGLEventManagerModel:
             query = f"INSERT INTO {self.__JOURNEY_TABLE_NAME} (datetime, rtt, tt, device_id) VALUES (%s, %s, %s, %s)"
             val = tuple(payload.split(';')[:-1])
 
-            device = val[3]
+            device = val[3].strip()
             if not self.__deviceExists(device):
                 print(f"Device: {device} does not exist in DB. Will be created.")
                 self.storeDevice(device)
