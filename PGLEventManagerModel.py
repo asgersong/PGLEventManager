@@ -176,6 +176,7 @@ class PGLEventManagerModel:
         try:
             cursor = self.__PGL_db_connection.cursor()
             val = tuple(credentials.split(';')[:-1])
+            username = val[0]
 
             # if no duplicates, insert in table
             if not self.__userExists(val[0]):
@@ -185,14 +186,14 @@ class PGLEventManagerModel:
                 self.__PGL_db_connection.commit()
                 print("Stored user in DB")
                 cursor.close()
-                return 'VALID'
+                return 'VALID', username
 
             # user already exists
             else:
                 cursor.reset()
                 cursor.close()
                 print("Duplicate user not stored")
-                return 'INVALID'
+                return 'INVALID', username
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
@@ -260,7 +261,8 @@ class PGLEventManagerModel:
                                             AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data), username
+            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            return self.__eventsToJson(all_data, row_headers), username
 
     def getEmergencies(self, payload: str) -> str:
         payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
@@ -284,7 +286,8 @@ class PGLEventManagerModel:
 
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data)
+            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            return self.__eventsToJson(all_data, row_headers), username
 
         elif device_id != 0:
             cursor = self.__PGL_db_connection.cursor()
@@ -295,7 +298,8 @@ class PGLEventManagerModel:
                                         AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data)
+            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            return self.__eventsToJson(all_data, row_headers), username
 
     def validateUser(self, credentials: str) -> str:
         try:

@@ -121,10 +121,10 @@ class PGLEventManagerController:
                         case self.__REQUEST_STORE_USER_IN_DB_TOPIC:
                             # if any logic should be computed on the incoming data, we should do it here
                             event_string = mqtt_message.payload.decode("utf-8")
-                            succ = self.__PGLmodel.storeUser(event_string)
+                            succ, user = self.__PGLmodel.storeUser(event_string)
                             # publish to indicate if user is stored succesfully
-                            self.__mqtt_client.publish(
-                                self.__RESPONSE_VALIDATE_USER_TOPIC, succ)
+                            self.__mqtt_client.publish(f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{user}/response', succ)
+                            print(f'Validated user: {succ}')
 
                         # return all events from database for given user
                         case self.__REQUEST_GET_EVENTS_TOPIC:
@@ -152,9 +152,8 @@ class PGLEventManagerController:
 
                         case self.__REQUEST_GET_EMERGENCIES_TOPIC:
                             payload = mqtt_message.payload.decode("utf-8")
-                            data = self.__PGLmodel.getEmergencies(payload)
-                            self.__mqtt_client.publish(
-                                self.__RESPONSE_EMERGENCY_TOPIC, data)
+                            data, user = self.__PGLmodel.getEmergencies(payload)
+                            self.__mqtt_client.publish(f'{self.__RESPONSE_EMERGENCY_TOPIC}/{user}/response', data)
                             print("Published emergencies")
 
                         case _:
