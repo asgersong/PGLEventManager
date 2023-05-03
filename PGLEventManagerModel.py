@@ -217,10 +217,11 @@ class PGLEventManagerModel:
 
 # endregion
 
-    def __eventsToJson(self, data) -> str:
+    def __eventsToJson(self, data, row_headers) -> str:
         events = []
+
         for row in data:
-            events.append(row)
+            events.append(dict(zip(row_headers, row)))
         events_json = json.dumps(events)
         return events_json
 
@@ -246,7 +247,8 @@ class PGLEventManagerModel:
                                             WHERE username = '{username}')"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data)
+            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            return self.__eventsToJson(all_data, row_headers), username
 
         # return data related to specific device and user. Returns empty list if no data
         elif device_id != 0:
@@ -258,7 +260,7 @@ class PGLEventManagerModel:
                                             AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            return self.__eventsToJson(all_data)
+            return self.__eventsToJson(all_data), username
 
     def getEmergencies(self, payload: str) -> str:
         payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
@@ -296,15 +298,16 @@ class PGLEventManagerModel:
             return self.__eventsToJson(all_data)
 
     def validateUser(self, credentials: str) -> str:
-        payload_in = tuple(credentials.split(';')[:-1])
-        user = payload_in[0]
-        pass_ = payload_in[1]
-        client_id = payload_in[2]
-
-        cursor = self.__PGL_db_connection.cursor()
-        query = f'SELECT COUNT(*) FROM {self.__USERS_TABLE_NAME} WHERE username = "{user}" AND password = "{pass_}"'
-
         try:
+            payload_in = tuple(credentials.split(';')[:-1])
+            user = payload_in[0]
+            pass_ = payload_in[1]
+            client_id = payload_in[2]
+
+            cursor = self.__PGL_db_connection.cursor()
+            query = f'SELECT COUNT(*) FROM {self.__USERS_TABLE_NAME} WHERE username = "{user}" AND password = "{pass_}"'
+
+
             cursor.execute(query)
             rows = cursor.fetchone()
             count = rows[0]

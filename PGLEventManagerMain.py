@@ -15,7 +15,8 @@ def main():
 
     while not stop_daemon.is_set():
         if keyboard.is_pressed('x'):
-            stop_daemon.set()
+            pass
+            # stop_daemon.set()
 
     print("Exiting")
     controller.stopListening()

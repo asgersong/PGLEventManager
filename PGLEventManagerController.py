@@ -129,11 +129,10 @@ class PGLEventManagerController:
                         # return all events from database for given user
                         case self.__REQUEST_GET_EVENTS_TOPIC:
                             # retrieve data from database using the model
-                            payload = mqtt_message.payload.decode("utf-8")
-                            data = self.__PGLmodel.getJourneys(payload)
+                            user = mqtt_message.payload.decode("utf-8")
+                            data, user = self.__PGLmodel.getJourneys(user)
                             # publish the data on the proper topic
-                            self.__mqtt_client.publish(
-                                self.__RESPONSE_SEND_EVENTS_TOPIC, data)
+                            self.__mqtt_client.publish(f"{self.__RESPONSE_SEND_EVENTS_TOPIC}/{user}/response", data)
                             print("Published data")
 
                         # validate a user
@@ -142,7 +141,7 @@ class PGLEventManagerController:
                             validity, client_id = self.__PGLmodel.validateUser(
                                 credentials)
                             self.__mqtt_client.publish(
-                                f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{client_id}', validity)
+                                f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{client_id}/response', validity)
                             print(f'Validated user: {validity}')
 
                         # store emergency message
