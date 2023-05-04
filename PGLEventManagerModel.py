@@ -172,7 +172,7 @@ class PGLEventManagerModel:
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
 
-    def storeUser(self, credentials: str) -> None:
+    def storeUser(self, credentials: str) -> str:
         try:
             cursor = self.__PGL_db_connection.cursor()
             val = tuple(credentials.split(';')[:-1])
@@ -198,23 +198,50 @@ class PGLEventManagerModel:
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
 
-    def storeProduct(self, payload: str) -> None:
+    def __createProduct(self, user : str, device : str, cursor):
+        query = f"""INSERT INTO products (device_id, user_id) 
+                VALUES ('{device}', 
+                    (SELECT user_id FROM users WHERE username = '{user}'));"""
+        
+        cursor.execute(query)
+        self.__PGL_db_connection.commit()
+        print(f'Insert user: {user} and device_id: {device}')
+        cursor.close()
+
+    def storeProduct(self, payload: str) -> str:
         try:
             cursor = self.__PGL_db_connection.cursor()
             val = tuple(payload.split(';')[:-1])
             user = val[1]
             device_id = val[0]
-            query = f"""INSERT INTO products (device_id, user_id) 
-                            VALUES ('{device_id}', 
-                                (SELECT user_id FROM users WHERE username = '{user}'));"""
 
+            # get user type
+            query = f"SELECT usertype FROM users WHERE username = '{user}';"
             cursor.execute(query)
-            self.__PGL_db_connection.commit()
-            print(f'Insert user: {user} and device_id: {device_id}')
-            cursor.close()
+            usertype = cursor.fetchone()[0]
+
+            #if user is caregiver then create product
+            if usertype == 'caregiver':
+                self.__createProduct(user, device_id, cursor)
+                return 'VALID', user
+            
+            #if user is resident then check if product exists
+            elif usertype == 'resident':
+                query = f"""SELECT COUNT(device_id) FROM products 
+                                WHERE user_id = (SELECT user_id FROM users WHERE username = '{user}');"""
+                cursor.execute(query)
+                products = cursor.fetchone()[0]
+                if products == 0:
+                    self.__createProduct(user, device_id, cursor)
+                    return 'VALID', user
+                else:
+                    return 'INVALID', user
+            else:
+                return 'INVALID', user
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
+            return 'INVALID', user
 
 # endregion
 
@@ -318,9 +345,9 @@ class PGLEventManagerModel:
             cursor.reset()
             cursor.close()
             if (count > 0):
-                return 'VALID', client_id
+                return 'VALID', user
             else:
-                return 'INVALID', client_id
+                return 'INVALID', user
 
         except mysql.Error as err:
             Warning.warn("Failed to validate user")

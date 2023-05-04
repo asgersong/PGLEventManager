@@ -12,7 +12,7 @@ class PGLEventManagerController:
     outgoing data (to the web server (?))"""
 
     # different MQTT topics
-    # READ: Right now we publish on the '__RESPONSE_VALIDATE_USER_TOPIC' topic both when explicitly requested (logging in),
+    # READ: Right now we publish on the '__RESPONSE_VALIDATE_TOPIC' topic both when explicitly reque(logging in),
     # and when trying to create a new user (check for duplicates).
     __MAIN_TOPIC = "PGL"
     __REQUEST_TOPICS = f"{__MAIN_TOPIC}/request/#"
@@ -29,7 +29,7 @@ class PGLEventManagerController:
     __REQUEST_NEW_DEVICE_TOPIC = f'{__MAIN_TOPIC}/request/new_device'
 
     __RESPONSE_SEND_EVENTS_TOPIC = f'{__MAIN_TOPIC}/response/send_events'
-    __RESPONSE_VALIDATE_USER_TOPIC = f'{__MAIN_TOPIC}/response/valid_user'
+    __RESPONSE_VALIDATE_TOPIC = f'{__MAIN_TOPIC}/response/valid'
     __RESPONSE_EMERGENCY_TOPIC = f'{__MAIN_TOPIC}/response/emergency'
 
     def __init__(self, mqtt_host: str, model: PGLEventManagerModel, mqtt_port: int = 1883) -> None:
@@ -42,9 +42,10 @@ class PGLEventManagerController:
         # mqtt parameters and callback methods
         self.__mqtt_host = mqtt_host
         self.__mqtt_port = mqtt_port
-        self.__mqtt_client = MqttClient()
+        self.__mqtt_client = MqttClient(reconnect_on_failure=True)
         self.__mqtt_client.on_message = self.__onMessage
         self.__mqtt_client.on_connect = self.__onConnect
+        # self.__mqtt_client.on_disconnect = self.__onDisconnect
         # initialize other callback methods here
 
     # connect the model to address and start the subscriber_thread
@@ -80,6 +81,7 @@ class PGLEventManagerController:
 
     # callback method that is called whenever a message arrives on a topic that '__mqtt_client' subscribes to
     def __onMessage(self, client, userdata, message: MQTTMessage) -> None:
+        message.retain = False
         self.__events_queue.put(message)
         print(f'MQTT Message received with payload: {message.payload}')
 
@@ -115,7 +117,9 @@ class PGLEventManagerController:
                         # store produc in database (from web request)
                         case self.__REQUEST_CREATE_PRODUCT_TOPIC:
                             event_string = mqtt_message.payload.decode("utf-8")
-                            self.__PGLmodel.storeProduct(event_string)
+                            success, user = self.__PGLmodel.storeProduct(event_string)
+                            self.__mqtt_client.publish(f'{self.__RESPONSE_VALIDATE_TOPIC}/{user}/response', success)               
+                            print(f'Stores product: {success}')
 
                         # store user in database
                         case self.__REQUEST_STORE_USER_IN_DB_TOPIC:
@@ -123,7 +127,7 @@ class PGLEventManagerController:
                             event_string = mqtt_message.payload.decode("utf-8")
                             succ, user = self.__PGLmodel.storeUser(event_string)
                             # publish to indicate if user is stored succesfully
-                            self.__mqtt_client.publish(f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{user}/response', succ)
+                            self.__mqtt_client.publish(f'{self.__RESPONSE_VALIDATE_TOPIC}/{user}/response', succ)               
                             print(f'Validated user: {succ}')
 
                         # return all events from database for given user
@@ -141,7 +145,7 @@ class PGLEventManagerController:
                             validity, client_id = self.__PGLmodel.validateUser(
                                 credentials)
                             self.__mqtt_client.publish(
-                                f'{self.__RESPONSE_VALIDATE_USER_TOPIC}/{client_id}/response', validity)
+                                f'{self.__RESPONSE_VALIDATE_TOPIC}/{client_id}/response', validity)                        
                             print(f'Validated user: {validity}')
 
                         # store emergency message

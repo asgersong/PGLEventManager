@@ -5,7 +5,6 @@ from PGLEventManagerController import PGLEventManagerController
 
 
 def main():
-    stop_daemon = Event()
     print("Press 'x' to terminate")
 
     model = PGLEventManagerModel("localhost", "PGL", "PGL", "PGL")
@@ -13,13 +12,13 @@ def main():
 
     controller.startListening()
 
-    while not stop_daemon.is_set():
-        if keyboard.is_pressed('x'):
+    try:
+        while True:
             pass
-            # stop_daemon.set()
 
-    print("Exiting")
-    controller.stopListening()
+    except KeyboardInterrupt:
+        print("Exiting")
+        controller.stopListening()
 
 
 if __name__ == "__main__":
