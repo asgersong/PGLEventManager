@@ -107,71 +107,96 @@ class PGLEventManagerModel:
         cursor.close()
         self.__PGL_db_connection = self.__database_name
 
+    # check if user exists in database
+    # returns True if user exists, False otherwise
     def __userExists(self, username) -> bool:
+        # retrieves the count of rows with the given username
         cursor = self.__PGL_db_connection.cursor()
         query = f'SELECT COUNT(username) FROM {self.__USERS_TABLE_NAME} WHERE username = "{username}";'
         cursor.execute(query)
-        duplicates = cursor.fetchone()[0]
-        if duplicates == 0:
+        user_count = cursor.fetchone()[0]
+        if user_count == 0:
             return False
         else:
             return True
 
+    # check if device exists in database
+    # returns True if device exists, False otherwise
     def __deviceExists(self, device_id) -> bool:
+        # retrieves the count of rows with the given device_id
         cursor = self.__PGL_db_connection.cursor()
         query = f'SELECT COUNT(device_id) FROM {self.__DEVICES_TABLE_NAME} WHERE device_id = "{device_id}";'
         cursor.execute(query)
-        duplicates = cursor.fetchone()[0]
-        if duplicates == 0:
+        device_count = cursor.fetchone()[0]
+        if device_count == 0:
             return False
         else:
             return True
 
 # region Store data in database
+    # store a new device in the database with the given device_id
     def storeDevice(self, device_id: str) -> None:
         try:
-            cursor = self.__PGL_db_connection.cursor()
-            query = f'INSERT INTO {self.__DEVICES_TABLE_NAME} (device_id) VALUES ("{device_id}")'
-            cursor.execute(query)
-            self.__PGL_db_connection.commit()
-            print("Stored device in DB")
-            cursor.close()
+            if not self.__deviceExists(device_id):
+                cursor = self.__PGL_db_connection.cursor()
+                query = f'INSERT INTO {self.__DEVICES_TABLE_NAME} (device_id) VALUES ("{device_id}")'
+                cursor.execute(query)
+                self.__PGL_db_connection.commit()
+                print("Stored device in DB")
+                cursor.close()
+            else:
+                print("Device already exists in DB")
 
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
 
+    # store a new journey in the database with the given payload
     def storeJourney(self, payload: str) -> None:
         try:
             cursor = self.__PGL_db_connection.cursor()
-            query = f"INSERT INTO {self.__JOURNEY_TABLE_NAME} (datetime, rtt, tt, device_id) VALUES (%s, %s, %s, %s)"
             val = tuple(payload.split(';')[:-1])
 
+            # check if device exists in database and create it if it doesn't
             device = val[3].strip()
             if not self.__deviceExists(device):
-                print(f"Device: {device} does not exist in DB. Will be created.")
+                print(
+                    f"Device: {device} does not exist in DB. Will be created.")
                 self.storeDevice(device)
 
+            # store journey in database
+            query = f"INSERT INTO {self.__JOURNEY_TABLE_NAME} (datetime, rtt, tt, device_id) VALUES (%s, %s, %s, %s)"
             cursor.execute(query, val)
             self.__PGL_db_connection.commit()
             print("Stored event in DB")
             cursor.close()
 
         except mysql.Error as err:
-            print(f'Failed to insert into database with error: {err}')
+            print(f'Failed to insert journey into database with error: {err}')
 
+    # store a new emergency in the database with the given payload
     def storeEmergency(self, payload: str) -> None:
         try:
             cursor = self.__PGL_db_connection.cursor()
-            query = f"INSERT INTO {self.__EMERGENCY_TABLE_NAME} (datetime, et, device_id) VALUES (%s, %s, %s)"
             val = tuple(payload.split(';')[:-1])
+
+            # check if device exists in database and create it if it doesn't
+            device = val[2].strip()
+            if not self.__deviceExists(device):
+                print(
+                    f"Device: {device} does not exist in DB. Will be created.")
+                self.storeDevice(device)
+
+            # store emergency in database
+            query = f"INSERT INTO {self.__EMERGENCY_TABLE_NAME} (datetime, et, device_id) VALUES (%s, %s, %s)"
             cursor.execute(query, val)
             self.__PGL_db_connection.commit()
             print("Stored emergency in DB")
             cursor.close()
 
         except mysql.Error as err:
-            print(f'Failed to insert into database with error: {err}')
+            print(f'Failed to insert emergency into database with error: {err}')
 
+    # store a new user in the database with the given credentials
     def storeUser(self, credentials: str) -> str:
         try:
             cursor = self.__PGL_db_connection.cursor()
@@ -179,7 +204,7 @@ class PGLEventManagerModel:
             username = val[0]
 
             # if no duplicates, insert in table
-            if not self.__userExists(val[0]):
+            if not self.__userExists(username):
                 cursor.reset()
                 query = f"INSERT INTO {self.__USERS_TABLE_NAME} (username, password, usertype) VALUES (%s, %s, %s)"
                 cursor.execute(query, val)
@@ -198,16 +223,19 @@ class PGLEventManagerModel:
         except mysql.Error as err:
             print(f'Failed to insert into database with error: {err}')
 
-    def __createProduct(self, user : str, device : str, cursor):
+    # create a new product in the database with the given user and device
+    # this method is invoked from public storeProduct method which handles user types
+    def __createProduct(self, user: str, device: str, cursor):
         query = f"""INSERT INTO products (device_id, user_id) 
                 VALUES ('{device}', 
                     (SELECT user_id FROM users WHERE username = '{user}'));"""
-        
+
         cursor.execute(query)
         self.__PGL_db_connection.commit()
-        print(f'Insert user: {user} and device_id: {device}')
+        print(f'Created product for user: {user} and device_id: {device}')
         cursor.close()
 
+    # store a new product in the database with the given payload
     def storeProduct(self, payload: str) -> str:
         try:
             cursor = self.__PGL_db_connection.cursor()
@@ -220,22 +248,25 @@ class PGLEventManagerModel:
             cursor.execute(query)
             usertype = cursor.fetchone()[0]
 
-            #if user is caregiver then create product
+            # if user is caregiver then create product
             if usertype == 'caregiver':
                 self.__createProduct(user, device_id, cursor)
                 return 'VALID', user
-            
-            #if user is resident then check if product exists
+
+            # if user is resident then check if a product exists
             elif usertype == 'resident':
                 query = f"""SELECT COUNT(device_id) FROM products 
                                 WHERE user_id = (SELECT user_id FROM users WHERE username = '{user}');"""
                 cursor.execute(query)
-                products = cursor.fetchone()[0]
-                if products == 0:
+                product_count = cursor.fetchone()[0]
+                if product_count == 0:
                     self.__createProduct(user, device_id, cursor)
                     return 'VALID', user
                 else:
+                    print(f'Product already exists for resident-user: {user}')
                     return 'INVALID', user
+                
+            # invalid usertype or user not found
             else:
                 return 'INVALID', user
 
@@ -245,19 +276,20 @@ class PGLEventManagerModel:
 
 # endregion
 
-    def __eventsToJson(self, data, row_headers) -> str:
+    # convert data with row_headers_count to json
+    def __eventsToJson(self, data, row_headers_count) -> str:
         events = []
-
         for row in data:
-            events.append(dict(zip(row_headers, row)))
+            events.append(dict(zip(row_headers_count, row)))
         events_json = json.dumps(events)
         return events_json
 
 # region Get data from database
 
+    # get journeys from database corresponding to the given payload
     def getJourneys(self, payload: str) -> str:
         payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
-        username = payload_in[0]  # get username from payload
+        username = payload_in[0]                     # get username from payload
 
         if len(payload_in) > 1:
             # get device_id from payload if available
@@ -274,8 +306,9 @@ class PGLEventManagerModel:
                                         (SELECT user_id FROM {self.__USERS_TABLE_NAME} 
                                             WHERE username = '{username}')"""
             cursor.execute(query)
-            all_data = cursor.fetchall()
-            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            all_data = cursor.fetchall()    # fetch all data in format [(row1), (row2), ... row(row_headers)]
+            # this will extract row headers
+            row_headers = [x[0] for x in cursor.description]
             return self.__eventsToJson(all_data, row_headers), username
 
         # return data related to specific device and user. Returns empty list if no data
@@ -288,9 +321,11 @@ class PGLEventManagerModel:
                                             AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            # this will extract row headers
+            row_headers = [x[0] for x in cursor.description]
             return self.__eventsToJson(all_data, row_headers), username
 
+    # get emergencies from database corresponding to the given payload
     def getEmergencies(self, payload: str) -> str:
         payload_in = tuple(payload.split(';')[:-1])  # get payload as tuple
         # get username from payload
@@ -313,7 +348,8 @@ class PGLEventManagerModel:
 
             cursor.execute(query)
             all_data = cursor.fetchall()
-            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            # this will extract row headers
+            row_headers = [x[0] for x in cursor.description]
             return self.__eventsToJson(all_data, row_headers), username
 
         elif device_id != 0:
@@ -325,9 +361,11 @@ class PGLEventManagerModel:
                                         AND products.device_id = '{device_id}'"""
             cursor.execute(query)
             all_data = cursor.fetchall()
-            row_headers=[x[0] for x in cursor.description] #this will extract row headers
+            # this will extract row headers
+            row_headers = [x[0] for x in cursor.description]
             return self.__eventsToJson(all_data, row_headers), username
 
+    # validate user with given credentials
     def validateUser(self, credentials: str) -> str:
         try:
             payload_in = tuple(credentials.split(';')[:-1])
@@ -337,7 +375,6 @@ class PGLEventManagerModel:
 
             cursor = self.__PGL_db_connection.cursor()
             query = f'SELECT COUNT(*) FROM {self.__USERS_TABLE_NAME} WHERE username = "{user}" AND password = "{pass_}"'
-
 
             cursor.execute(query)
             rows = cursor.fetchone()
@@ -351,6 +388,6 @@ class PGLEventManagerModel:
 
         except mysql.Error as err:
             Warning.warn("Failed to validate user")
-            return 'INVALID', client_id
+            return 'INVALID', user
 
 # endregion
