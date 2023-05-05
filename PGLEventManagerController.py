@@ -42,9 +42,10 @@ class PGLEventManagerController:
         # mqtt parameters and callback methods
         self.__mqtt_host = mqtt_host
         self.__mqtt_port = mqtt_port
-        self.__mqtt_client = MqttClient(reconnect_on_failure=True)
+        self.__mqtt_client = MqttClient(reconnect_on_failure=True, protocol=5)
         self.__mqtt_client.on_message = self.__onMessage
         self.__mqtt_client.on_connect = self.__onConnect
+        self.__mqtt_client.on_disconnect = self.__onDisconnect
         # self.__mqtt_client.on_disconnect = self.__onDisconnect
         # initialize other callback methods here
 
@@ -53,7 +54,8 @@ class PGLEventManagerController:
         self.__PGLmodel.connectDB()  # connect to database
 
         self.__mqtt_client.connect(host=self.__mqtt_host,  # connect to mqtt
-                                   port=self.__mqtt_port)
+                                   port=self.__mqtt_port,
+                                   clean_start=True)
 
         self.__mqtt_client.loop_start()  # start loop
         self.__mqtt_client.subscribe(
@@ -76,14 +78,29 @@ class PGLEventManagerController:
         self.__PGLmodel.disconnectDB()
 
     # callback method that is called when __mqtt_client is connected
-    def __onConnect(self, client, userdata, flags, rc) -> None:
+    def __onConnect(self, client, userdata, flags, rc, _) -> None:
         print("MQTT client connected")
+
+    # callback method that is called when __mqtt_client is disconnected
+    def __onDisconnect(self, client, userdata, rc, _) -> None:
+        # publish an empty message to all request topics with retain=True to clear the mqtt queue
+        self.__mqtt_client.publish(self.__REQUEST_STORE_EVENT_IN_DB_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_EMERGENCY_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_STORE_USER_IN_DB_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_CREATE_PRODUCT_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_GET_EVENTS_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_GET_EMERGENCIES_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_VALIDATE_USER_TOPIC, "", retain=True)
+        self.__mqtt_client.publish(self.__REQUEST_NEW_DEVICE_TOPIC, "", retain=True)
+        print("MQTT client disconnected")
 
     # callback method that is called whenever a message arrives on a topic that '__mqtt_client' subscribes to
     def __onMessage(self, client, userdata, message: MQTTMessage) -> None:
-        message.retain = False
-        self.__events_queue.put(message)
-        print(f'MQTT Message received with payload: {message.payload}')
+        if message.payload == b'':
+            print("Empty MQTT message received")
+        else:
+            self.__events_queue.put(message)
+            print(f'MQTT Message received with payload: {message.payload}')
 
     # __worker is the method that the __subscriber_thread runs
     # listens for MQTT events

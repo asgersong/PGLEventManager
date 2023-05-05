@@ -2,6 +2,7 @@ from threading import Event
 import keyboard
 from PGLEventManagerModel import PGLEventManagerModel
 from PGLEventManagerController import PGLEventManagerController
+from time import sleep
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
 
     try:
         while True:
+            sleep(1)
             pass
 
     except KeyboardInterrupt:
