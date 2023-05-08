@@ -1,0 +1,13 @@
+pyproject.toml
+setup.cfg
+setup.py
+src/PGLEventManager/PGLEventManagerController.py
+src/PGLEventManager/PGLEventManagerMain.py
+src/PGLEventManager/PGLEventManagerModel.py
+src/PGLEventManager.egg-info/PKG-INFO
+src/PGLEventManager.egg-info/SOURCES.txt
+src/PGLEventManager.egg-info/dependency_links.txt
+src/PGLEventManager.egg-info/not-zip-safe
+src/PGLEventManager.egg-info/requires.txt
+src/PGLEventManager.egg-info/top_level.txt
+tests/test_PGLEventManagerModel.py
